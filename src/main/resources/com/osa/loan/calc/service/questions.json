@@ -1,0 +1,24 @@
+{
+  "value-of-the-property": "Value of the property (zł):",
+  "surface-estate": "Real Estate (m2):",
+
+  "amount-of-credit": "Amount Of Credit:",
+  "term-loan": "term-loan (months):",
+  "currency": "currency:",
+  "interest": "interest:",
+
+  "date-of-birth": "Date of birth (dd.MM.yyyy):",
+  "sex": "sex:",
+  "date-birth-spouse": "Date-birth-spouse(ki) (dd.MM.yyyy):",
+  "marital-status": "marital status:",
+  "children": "children (quantity):",
+  "date-birth-baby": "Date-birth-baby (dd.MM.yyyy):",
+  "salary": "Monthly net pay (zł):",
+  "salary-spouse": "Monthly net salary of the spouse(ki) (zł) :",
+
+  "flat-fee": "Flat fee (zł):",
+  "cost-of-living": "Cost of living (zł):",
+  "and-insurance-premiums": "Insurance premiums (zł):",
+  "other-loans": "Installments of other loans (zł):",
+  "remaining-fees": "Other costs (zł):"
+}

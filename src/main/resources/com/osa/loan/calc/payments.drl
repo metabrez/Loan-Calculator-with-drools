@@ -1,0 +1,183 @@
+package com.osa.loan.calc;
+
+import com.osa.loan.calc.model.*;
+import com.osa.loan.calc.service.*;
+
+dialect  "java"
+
+global TotalPayments totalPayments;
+global Utils utils;
+
+rule "1: Charges for an apartment."
+no-loop true
+salience 100
+    when
+        $person :Person()
+        $bills : MonthlyBills(estate > 0) from $person.bills
+    then
+        totalPayments.addPayment($bills.getEstate());
+end
+
+rule "2: Maintenance costs."
+no-loop true
+salience 100
+    when
+        $person :Person()
+        $bills : MonthlyBills(living > 0) from $person.bills
+    then
+        totalPayments.addPayment($bills.getLiving());
+end
+
+rule "3: Insurance premiums."
+no-loop true
+salience 100
+    when
+        $person :Person()
+        $bills : MonthlyBills(insurance > 0) from $person.bills
+    then
+        totalPayments.addPayment($bills.getInsurance());
+end
+
+rule "4: Other loans."
+no-loop true
+salience 100
+    when
+        $person :Person()
+        $bills : MonthlyBills(otherLoans > 0) from $person.bills
+    then
+        totalPayments.addPayment($bills.getOtherLoans());
+end
+
+rule "5: Other costs."
+no-loop true
+salience 100
+    when
+        $person :Person()
+        $bills : MonthlyBills(others > 0) from $person.bills
+    then
+        totalPayments.addPayment($bills.getOthers());
+end
+
+rule "6: Working customer"
+no-loop true
+salience 99
+    when
+        $person : Person(monthlySalary > 0)
+        $results : Results(unemployed == true)
+    then
+        modify($results){ setUnemployed(false) };
+end
+
+rule "7: Unemployed client"
+no-loop true
+salience 99
+    when
+        $person : Person(monthlySalary == 0)
+        $results : Results(unemployed == false)
+    then
+        modify($results){ setUnemployed(true) };
+end
+
+rule "8: Working wife"
+no-loop true
+salience 99
+    when
+        $person : Person(married == true, partnerMonthlySalary > 0)
+        $results : Results(partnerUnemployed == true)
+    then
+        modify($results){ setPartnerUnemployed(false) };
+end
+
+rule "9: Unemployed spouse"
+no-loop true
+salience 99
+    when
+        $person : Person(married == true, partnerMonthlySalary == 0)
+        $results : Results(partnerUnemployed == false)
+    then
+        modify($results){ setPartnerUnemployed(true) };
+end
+
+rule "10: The customer is not solvent"
+no-loop true
+salience 98
+    when
+        $person : Person(monthlySalary < bills.totalPayments)
+        $results : Results(ableToPayBills == true)
+    then
+        modify($results){ setAbleToPayBills(false) };
+end
+
+rule "11: A solvent customer"
+no-loop true
+salience 98
+    when
+        $person : Person(monthlySalary >= bills.totalPayments)
+        $results : Results(ableToPayBills == false)
+    then
+        modify($results){ setAbleToPayBills(true) };
+end
+
+rule "12: The client and the spouse are not solvent"
+no-loop true
+salience 97
+    when
+        $person : Person(monthlySalary + partnerMonthlySalary < bills.totalPayments)
+        $results : Results(ableToPayBills == true)
+    then
+        modify($results){ setAbleToPayBills(false) };
+end
+
+rule "13: A client with a solvency spouse"
+no-loop true
+salience 97
+    when
+        $person : Person(monthlySalary + partnerMonthlySalary >= bills.totalPayments)
+        $results : Results(ableToPayBills == false)
+    then
+        modify($results){ setAbleToPayBills(true) };
+end
+
+rule "14: The customer is not able to pay the installments himself"
+no-loop true
+salience 96
+    when
+        $person : Person(monthlySalary < (bills.totalPayments + loan.monthlyLoanInstallment))
+        $loan : Loan(monthlyLoanInstallment > 0) from $person.loan
+        $results : Results(ableToPayInstallments == true)
+    then
+        modify($results){ setAbleToPayInstallments(false) };
+end
+
+rule "15: The customer is able to pay the installments himself"
+no-loop true
+salience 96
+    when
+        $person : Person(monthlySalary >= (bills.totalPayments + loan.monthlyLoanInstallment))
+        $loan : Loan(monthlyLoanInstallment > 0) from $person.loan
+        $results : Results(ableToPayInstallments == false)
+    then
+        modify($results){ setAbleToPayInstallments(true) };
+end
+
+rule "16: The client and the spouse are unable to pay the installments"
+no-loop true
+salience 95
+    when
+        $person : Person(married == true, monthlySalary + partnerMonthlySalary < (bills.totalPayments + loan.monthlyLoanInstallment))
+        $loan : Loan(monthlyLoanInstallment > 0) from $person.loan
+        $results : Results(ableToPayInstallmentsWithPartner == true)
+    then
+        modify($results){ setAbleToPayInstallmentsWithPartner(false) };
+end
+
+rule "17: The client with the spouse is able to pay installments"
+no-loop true
+salience 95
+    when
+        $person : Person(married == true, monthlySalary + partnerMonthlySalary >= (bills.totalPayments + loan.monthlyLoanInstallment))
+        $loan : Loan(monthlyLoanInstallment > 0) from $person.loan
+        $results : Results(ableToPayInstallmentsWithPartner == false)
+    then
+        modify($results){ setAbleToPayInstallmentsWithPartner(true) };
+end

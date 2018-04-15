@@ -1,0 +1,177 @@
+package com.osa.loan.calc;
+import com.osa.loan.calc.model.*;
+import com.osa.loan.calc.service.*;
+import java.util.List;
+import java.time.LocalDate;
+import org.slf4j.Logger;
+
+dialect  "java"
+
+global Logger log;
+global Utils utils;
+
+rule "18: Underage customer"
+no-loop true
+salience 90
+    when
+        $person : Person(utils.getAgeInYears(birthDay) < 18)
+        $results : Results(oldEnough == true)
+    then
+        modify($results){ setOldEnough(false) };
+end
+
+rule "19: An adult customer"
+no-loop true
+salience 90
+    when
+        $person : Person(utils.getAgeInYears(birthDay) >= 18)
+        $results : Results(oldEnough == false)
+    then
+        modify($results){ setOldEnough(true) };
+end
+
+rule "20:Customer too old"
+no-loop true
+salience 89
+    when
+        $person : Person(man == true, utils.getAgeInYears(birthDay) >= utils.averageManAge)
+        $results : Results(tooOld == false)
+    then
+        modify($results){ setTooOld(true) };
+end
+
+rule "21: The client is too old"
+no-loop true
+salience 89
+    when
+        $person : Person(man == false, utils.getAgeInYears(birthDay) >= utils.averageWomanAge)
+        $results : Results(tooOld == false)
+    then
+        modify($results){ setTooOld(true) };
+end
+
+rule "22: The customer is not too old"
+no-loop true
+salience 89
+    when
+        $person : Person(man == true, utils.getAgeInYears(birthDay) < utils.averageManAge)
+        $results : Results(tooOld == true)
+    then
+        modify($results){ setTooOld(false) };
+end
+
+rule "23: The client is not too old"
+no-loop true
+salience 89
+    when
+        $person : Person(man == false, utils.getAgeInYears(birthDay) < utils.averageWomanAge)
+        $results : Results(tooOld == true)
+    then
+        modify($results){ setTooOld(false) };
+end
+
+rule "24: The client's wife is too old"
+no-loop true
+salience 88
+    when
+        $person : Person(married == true, man == true, utils.getAgeInYears(partnerBirthDay) >= utils.averageWomanAge)
+        $results : Results(tooOld == false)
+    then
+        modify($results){ setTooOld(true) };
+end
+
+rule "25: The client's wife is too old"
+no-loop true
+salience 88
+    when
+        $person : Person(married == true, man == false, utils.getAgeInYears(partnerBirthDay) >= utils.averageManAge)
+        $results : Results(tooOld == false)
+    then
+        modify($results){ setTooOld(true) };
+end
+
+rule "26: Your spouse is not too old"
+no-loop true
+salience 88
+    when
+        $person : Person(married == true, man == true, utils.getAgeInYears(partnerBirthDay) < utils.averageWomanAge)
+        $results : Results(tooOld == true)
+    then
+        modify($results){ setTooOld(false) };
+end
+
+rule "27: The client's wife is not too old"
+no-loop true
+salience 88
+    when
+        $person : Person(married == true, man == false, utils.getAgeInYears(partnerBirthDay) < utils.averageManAge)
+        $results : Results(tooOld == true)
+    then
+        modify($results){ setTooOld(false) };
+end
+
+rule "28: The customer will not be able to pay all installments"
+no-loop true
+salience 87
+    when
+        $person : Person(utils.getNumberOfInstallmentsThatCouldBePaid(birthDay, man) < loan.period)
+        $loan : Loan(period > 0) from $person.loan
+        $results : Results(willClientLiveLongEnough == true)
+    then
+        modify($results){ setWillClientLiveLongEnough(false) };
+end
+
+rule "29: The customer will be able to pay all installments"
+no-loop true
+salience 87
+    when
+        $person : Person(utils.getNumberOfInstallmentsThatCouldBePaid(birthDay, man) >= loan.period)
+        $loan : Loan(period > 0) from $person.loan
+        $results : Results(willClientLiveLongEnough == false)
+    then
+        modify($results){ setWillClientLiveLongEnough(true) };
+end
+
+rule "30: The client's spouse will not be able to pay off all installments"
+no-loop true
+salience 86
+    when
+        $person : Person(married == true, utils.getNumberOfInstallmentsThatCouldBePaid(partnerBirthDay, !man) < loan.period)
+        $loan : Loan(period > 0) from $person.loan
+        $results : Results(willClientsPartnerLiveLongEnough == true)
+    then
+        modify($results){ setWillClientsPartnerLiveLongEnough(false) };
+end
+
+rule "31: The customer will be able to pay all installments"
+no-loop true
+salience 86
+    when
+        $person : Person(married == true, utils.getNumberOfInstallmentsThatCouldBePaid(partnerBirthDay, !man) >= loan.period)
+        $loan : Loan(period > 0) from $person.loan
+        $results : Results(willClientsPartnerLiveLongEnough == false)
+    then
+        modify($results){ setWillClientsPartnerLiveLongEnough(true) };
+end
+
+rule "32: At least one of the children could continue to pay the loan directly after the client's death"
+no-loop true
+salience 85
+    when
+        $person : Person(children > 0)
+        $childBirthday : LocalDate(utils.childWillBeAbleToCarryOn($person.birthDay, $person.man, $childBirthday) == true) from $person.childrenBirthDays
+        $results : Results(childCanCarryOnAfterClient == false)
+    then
+        modify($results){ setChildCanCarryOnAfterClient(true) };
+end
+
+rule "33: At least one of the children could continue to pay off the loan immediately after the death of a couple's wife"
+no-loop true
+salience 84
+    when
+        $person : Person(children > 0)
+        $childBirthday : LocalDate(utils.childWillBeAbleToCarryOn($person.partnerBirthDay, !$person.man, $childBirthday) == true) from $person.childrenBirthDays
+        $results : Results(childCanCarryOnAfterPartner == false)
+    then
+        modify($results){ setChildCanCarryOnAfterPartner(true) };
+end
